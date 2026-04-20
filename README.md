@@ -3,7 +3,7 @@
 [![Python 3.10](https://img.shields.io/badge/python-3.10-orange.svg)](https://www.python.org/downloads/release/python-3100/)
 [![IronPython](https://img.shields.io/badge/ironpython-2.7-red.svg)](https://github.com/IronLanguages/ironpython2/releases/tag/ipy-2.7.8/)
 
-<img src="https://www.ladybug.tools/assets/img/dragonfly.png" width="200" height="200"> <img src="https://energy-models.com/sites/all/files/imagecache/110w/trace700_110w_1.png" width="200" height="200">
+![Dragonfly](https://www.ladybug.tools/assets/img/dragonfly.png) ![TRACE](https://energy-models.com/sites/all/files/imagecache/110w/trace700_110w_1.png)
 
 Dragonfly extension for translation to Trane TRACE.
 
