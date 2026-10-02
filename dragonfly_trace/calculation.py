@@ -47,7 +47,11 @@ def calculation_matrix(rooms, si_units=False):
         'Secondary\nRecirculation',
         '',
         'Total OA in\nCooling [{}]'.format(flow_unit),
-        'Total OA in\nHeating [{}]'.format(flow_unit)
+        'Total OA in\nHeating [{}]'.format(flow_unit),
+        '',
+        'Exhaust Air\nper Fixture\n[{}]'.format(flow_unit),
+        'Number of\nFixtures',
+        'Exhaust Air\nper Floor Area\n[{}]'.format(ra_unit),
     ]
     row_abbrev = [
         '',
@@ -69,7 +73,11 @@ def calculation_matrix(rooms, si_units=False):
         'Er',
         '',
         'Q Clg',
-        'Q Htg'
+        'Q Htg',
+        '',
+        '',
+        '',
+        ''
     ]
 
     # loop through the rooms and add each of the attributes
@@ -120,6 +128,18 @@ def calculation_matrix(rooms, si_units=False):
                 if 'secondary_occupancy' in vent.user_data:
                     secondary_cat = vent.user_data['secondary_occupancy']
 
+        # get all of the exhaust air criteria
+        exhaust_obj = room.properties.energy.exhaust
+        if exhaust_obj is not None:
+            if not si_units:
+                eaf = round(exhaust_obj.flow_per_fixture_ip, 3)
+                eaa = round(exhaust_obj.flow_per_area_ip, 3)
+            else:
+                eaf = round(exhaust_obj.flow_per_fixture_si, 3)
+                eaa = round(exhaust_obj.flow_per_area_si, 3)
+        else:
+            eaf, fc, eaa = 0, 0, 0
+
         # put all attributes into a list
         oa_attr = [
             room.identifier,
@@ -141,7 +161,11 @@ def calculation_matrix(rooms, si_units=False):
             er,
             '',
             total / clg_ez,
-            total / htg_ez
+            total / htg_ez,
+            '',
+            eaf,
+            fc,
+            eaa
         ]
         calc_mtx.append(oa_attr)
 
