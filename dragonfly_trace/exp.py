@@ -11,8 +11,13 @@ from ladybug.datatype.temperature import Temperature
 from ladybug.datatype.specificheatcapacity import SpecificHeatCapacity
 from ladybug.datatype.rvalue import RValue
 from ladybug.datatype.uvalue import UValue
-from honeybee_energy.material.opaque import EnergyMaterialNoMass
 
+from honeybee_energy.material.opaque import EnergyMaterialNoMass
+from honeybee_energy.schedule.ruleset import ScheduleRuleset
+from honeybee_energy.load.people import People
+from honeybee_energy.load.lighting import Lighting
+from honeybee_energy.load.equipment import ElectricEquipment, GasEquipment
+from honeybee_energy.lib.scheduletypelimits import power
 
 area_dt = Area()
 conductivity_dt = Conductivity()
@@ -27,7 +32,10 @@ rvalue_dt = RValue()
 uvalue_dt = UValue()
 
 
-def people_to_trace700_people(people, si_units=False):
+"""____________TRANSLATORS TO EXP____________"""
+
+
+def people_to_exp(people, si_units=False):
     """Get a TRACE 700 "T.LOAD_PEOPLE" entry string from a Honeybee People object.
 
     Args:
@@ -49,6 +57,9 @@ def people_to_trace700_people(people, si_units=False):
     people_amount = area_dt.to_unit([people.area_per_person], area_unit, 'm2')[0]
     sensible_ppl = power_dt.to_unit([people.activity_max_sensible], power_unit, 'W')[0]
     latent_ppl = power_dt.to_unit([people.activity_max_latent], power_unit, 'W')[0]
+    people_amount = round(people_amount, 1)
+    sensible_ppl = round(sensible_ppl, 1)
+    latent_ppl = round(latent_ppl, 1)
 
     # People;
     # Description;
@@ -67,7 +78,7 @@ def people_to_trace700_people(people, si_units=False):
     return exp_line
 
 
-def lighting_to_trace700_lighting(lighting, fixture_type='SUSFLUOR'):
+def lighting_to_exp(lighting, fixture_type='SUSFLUOR'):
     """Get a TRACE 700 "T.LOAD_LIGHTS" entry string from a Honeybee Lighting object.
 
     Args:
@@ -99,7 +110,7 @@ def lighting_to_trace700_lighting(lighting, fixture_type='SUSFLUOR'):
     return exp_line
 
 
-def equipment_to_trace700_miscellaneous(equipment, si_units=False, watts_per_area=None):
+def equipment_to_exp(equipment, si_units=False, watts_per_area=None):
     """Get a TRACE 700 "T.LOAD_MISEQUIP" entry string from a Honeybee Equipment object.
 
     Args:
@@ -128,6 +139,7 @@ def equipment_to_trace700_miscellaneous(equipment, si_units=False, watts_per_are
 
     lpd_val = watts_per_area if watts_per_area is not None else equipment.watts_per_area
     energy_value = flux_dt.to_unit([lpd_val], flux_unit, 'W/m2')[0]
+    energy_value = round(energy_value, 2)
 
     # Miscellaneous;
     # Description;
@@ -176,6 +188,9 @@ def program_to_trace700_internal_load_template(program, si_units=False):
         ppl_amount = area_dt.to_unit([ppl.area_per_person], area_unit, 'm2')[0]
         sensible_watts = power_dt.to_unit([ppl.activity_max_sensible], power_unit, 'W')[0]
         latent_watts = power_dt.to_unit([ppl.activity_max_latent], power_unit, 'W')[0]
+        ppl_amount = round(ppl_amount, 1)
+        sensible_watts = round(sensible_watts, 1)
+        latent_watts = round(latent_watts, 1)
     else:
         ppl_type = 'None'
         ppl_amount = 0
@@ -191,6 +206,7 @@ def program_to_trace700_internal_load_template(program, si_units=False):
     if ltg is not None:
         ltg_type = ltg.display_name
         ltg_lpd = flux_dt.to_unit([ltg.watts_per_area], flux_unit, 'W/m2')[0] if ltg else 0.0
+        ltg_lpd = round(ltg_lpd, 2)
     else:
         ltg_type = 'Fluorescent, hung below ceiling, 100% load to space'
         ltg_lpd = 0.0
@@ -205,6 +221,7 @@ def program_to_trace700_internal_load_template(program, si_units=False):
         combined_lpd = elec_lpd + gas_lpd
         if combined_lpd > 0:
             misc_energy = flux_dt.to_unit([combined_lpd], flux_unit, 'W/m2')[0]
+            misc_energy = round(misc_energy, 2)
             eq_obj = elec_eq if elec_lpd >= gas_lpd else gas_eq
             energy_meter = 1 if elec_lpd >= gas_lpd else 2
             misc_type = readable_short_name(eq_obj.display_name, max_length=40)
@@ -379,12 +396,12 @@ def internal_loads_to_exp(program, si_units=False):
     if program.people:
         standalone_blocks.extend([
             'T.LOAD_PEOPLE',
-            people_to_trace700_people(program.people, si_units)
+            people_to_exp(program.people, si_units)
         ])
     if program.lighting:
         standalone_blocks.extend([
             'T.LOAD_LIGHTS',
-            lighting_to_trace700_lighting(program.lighting)
+            lighting_to_exp(program.lighting)
         ])
 
     elec_eq = program.electric_equipment
@@ -397,7 +414,7 @@ def internal_loads_to_exp(program, si_units=False):
             eq_obj = elec_eq if elec_lpd >= gas_lpd else gas_eq
             standalone_blocks.extend([
                 'T.LOAD_MISEQUIP',
-                equipment_to_trace700_miscellaneous(eq_obj, si_units, watts_per_area=combined_lpd)
+                equipment_to_exp(eq_obj, si_units, watts_per_area=combined_lpd)
             ])
 
     internal_load_template = program_to_trace700_internal_load_template(program, si_units)
@@ -490,13 +507,13 @@ def program_to_exp(program, si_units=False, ventilation_method='Sum of Outdoor A
     if program.people:
         standalone_blocks.extend([
             'T.LOAD_PEOPLE',
-            people_to_trace700_people(program.people, si_units)
+            people_to_exp(program.people, si_units)
         ])
 
     if program.lighting:
         standalone_blocks.extend([
             'T.LOAD_LIGHTS',
-            lighting_to_trace700_lighting(program.lighting)
+            lighting_to_exp(program.lighting)
         ])
 
     elec_eq = program.electric_equipment
@@ -509,7 +526,7 @@ def program_to_exp(program, si_units=False, ventilation_method='Sum of Outdoor A
             eq_obj = elec_eq if elec_lpd >= gas_lpd else gas_eq
             standalone_blocks.extend([
                 'T.LOAD_MISEQUIP',
-                equipment_to_trace700_miscellaneous(eq_obj, si_units, watts_per_area=combined_lpd)
+                equipment_to_exp(eq_obj, si_units, watts_per_area=combined_lpd)
             ])
 
     internal_load_template = program_to_trace700_internal_load_template(program, si_units)
@@ -560,11 +577,11 @@ def programs_to_exp(programs, si_units=False, ventilation_method='Sum of Outdoor
 
     for program in programs:
         if program.people and program.people.identifier not in seen_people:
-            people_templates.append(people_to_trace700_people(program.people, si_units))
+            people_templates.append(people_to_exp(program.people, si_units))
             seen_people.add(program.people.identifier)
 
         if program.lighting and program.lighting.identifier not in seen_lighting:
-            lighting_templates.append(lighting_to_trace700_lighting(program.lighting))
+            lighting_templates.append(lighting_to_exp(program.lighting))
             seen_lighting.add(program.lighting.identifier)
 
         elec_eq = program.electric_equipment
@@ -578,7 +595,7 @@ def programs_to_exp(programs, si_units=False, ventilation_method='Sum of Outdoor
                 eq_obj = elec_eq if elec_lpd >= gas_lpd else gas_eq
                 if eq_obj.identifier not in seen_equip:
                     equip_templates.append(
-                        equipment_to_trace700_miscellaneous(
+                        equipment_to_exp(
                             eq_obj, si_units=si_units, watts_per_area=combined_lpd
                         )
                     )
@@ -1046,3 +1063,78 @@ def construction_sets_to_exp(construction_sets, si_units=False):
 
     file_data = newline.join(standalone_blocks) + newline
     return file_data
+
+
+"""____________TRANSLATORS FROM EXP____________"""
+
+
+def internal_loads_from_exp(exp_str):
+    """Get Honeybee People, Lighting and Equipment from a TRACE 700 InternalLoadTemplate.
+
+    Args:
+        exp_str: A TRACE 700 InternalLoadTemplate entry string.
+
+    Returns:
+         A tuple with three elements.
+
+        -   people: A Honeybee People object if people are non-zero and defined
+            per floor area. None otherwise.
+
+        -   lighting: A Honeybee Lighting object if lights are non-zero and defined
+            per floor area. None otherwise.
+
+        -   equipment: A Honeybee ElectricEquipment or GasEquipment object if
+            miscellaneous loads are non-zero and defined per floor area. None otherwise.
+    """
+    # deconstruct the string and get the identifiers
+    exp_vals = exp_str.split(';')
+    load_id = exp_vals[0]
+    people_id = exp_vals[1] if exp_vals[1] != 'None' else '{}_People'.format(load_id)
+    lights_id = exp_vals[9] if exp_vals[9] != 'None' else '{}_Lighting'.format(load_id)
+    equip_id = exp_vals[13] if exp_vals[13] != 'None' else '{}_Equipment'.format(load_id)
+
+    # process the people
+    people = None
+    ppl_val, ppl_unit = float(exp_vals[3]), int(exp_vals[4])
+    if ppl_val != 0 and ppl_unit in (1, 2):
+        if ppl_unit == 1:
+            ppl_val = area_dt.to_unit([ppl_val], 'm2', 'ft2')[0]
+        people = People(people_id, ppl_val)
+        sens_val, sens_unit = float(exp_vals[5]), int(exp_vals[6])
+        lat_val, lat_unit = float(exp_vals[7]), int(exp_vals[8])
+        if sens_unit in (7, 8) and sens_unit == lat_unit:
+            total = sens_val + lat_val
+            latent_fraction = lat_val / total
+            act_unit = 'Btu/h' if sens_unit == 7 else 'W'
+            sch_id = 'People Activity - {} [{}]'.format(total, act_unit)
+            if sens_unit == 7:
+                total = power_dt.to_unit([total], 'W', 'Btu/h')[0]
+            people.activity_schedule = \
+                ScheduleRuleset.from_constant_value(sch_id, total, power)
+            people.latent_fraction = latent_fraction
+
+    # process the lighting
+    lighting = None
+    lgt_val, lgt_unit = float(exp_vals[11]), int(exp_vals[12])
+    if lgt_val != 0 and lgt_unit in (1, 3, 4):
+        if lgt_unit == 1:
+            lgt_val = flux_dt.to_unit([lgt_val], 'W/m2', 'Btu/h-ft2')[0]
+        elif lgt_unit == 3:
+            lgt_val = flux_dt.to_unit([lgt_val], 'W/m2', 'W/ft2')[0]
+        lighting = Lighting(lights_id, lgt_val)
+
+    # process the miscellaneous loafs
+    equipment = None
+    equip_val, equip_unit = float(exp_vals[15]), int(exp_vals[16])
+    if equip_val != 0 and equip_unit in (1, 8, 9):
+        equip_type = int(exp_vals[17])
+        if equip_unit == 1:
+            equip_val = flux_dt.to_unit([equip_val], 'W/m2', 'Btu/h-ft2')[0]
+        elif equip_type == 8:
+            equip_val = flux_dt.to_unit([equip_val], 'W/m2', 'W/ft2')[0]
+        if equip_type == 2:
+            equipment = GasEquipment(equip_id, equip_val)
+        else:
+            equipment = ElectricEquipment(equip_id, equip_val)
+
+    return people, lighting, equipment
